@@ -1,0 +1,7 @@
+.idea/
+target/
+*.tokens
+*.conf
+*.json
+*.log
+.DS_Store
