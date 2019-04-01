@@ -2,6 +2,7 @@ package com.sopranoworks;
 
 import org.jgroups.Address;
 import org.jgroups.annotations.Property;
+import org.jgroups.conf.ClassConfigurator;
 import org.jgroups.protocols.FILE_PING;
 import org.jgroups.protocols.PingData;
 import org.jgroups.util.NameCache;
@@ -14,16 +15,22 @@ import java.io.ByteArrayOutputStream;
 import java.util.List;
 
 public class REDIS_PING extends FILE_PING {
+    protected static final short REDIS_PING_ID=3210;
+
+    static {
+        ClassConfigurator.addProtocol(REDIS_PING_ID, REDIS_PING.class);
+    }
+
     private Jedis _jedis;
 
     @Property(description="The redis host address")
-    protected String redis_host;
+    protected String redis_host = "localhost";
 
     @Property(description="The redis service port")
-    protected int redis_port;
+    protected int redis_port = 6379;
 
     @Property(description="The redis db number for the cluster")
-    protected int cluster_db;
+    protected int redis_db = 0;
 
     @Override
     public void init() throws Exception {
@@ -32,13 +39,17 @@ public class REDIS_PING extends FILE_PING {
         if (redis_host == null) throw new Exception("redis_host is not set");
         _jedis = new Jedis(redis_host, redis_port);
         _jedis.connect();
-        _jedis.select(cluster_db);
+        _jedis.select(redis_db);
     }
     
     protected static String addressToFilename(String clustername,Address mbr) {
         String logical_name= NameCache.get(mbr);
         String name=addressAsString(mbr) + (logical_name != null? logical_name : "");
-        return clustername + ":" + regexp.matcher(name).replaceAll("-");
+        return clustername + ":" + name;//regexp.matcher(name).replaceAll("-");
+    }
+
+    @Override
+    protected void createRootDir() {
     }
 
     @Override
@@ -106,7 +117,8 @@ public class REDIS_PING extends FILE_PING {
 
         try {
             write(list, os);
-            _jedis.psetex(keyname,info_writer_sleep_time * 2,new String(os.toByteArray()));
+//            _jedis.psetex(keyname,info_writer_sleep_time * 2,new String(os.toByteArray()));
+            _jedis.set(keyname,new String(os.toByteArray()));
         }
         catch(Exception ioe) {
             log.error(Util.getMessage("AttemptToWriteDataFailedAt") + clustername, ioe);
